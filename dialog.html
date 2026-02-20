@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Invoice Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .input-field { @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-3; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
+
+  <div class="max-w-md w-full bg-white shadow-xl rounded-xl overflow-hidden" id="app">
+    
+    <!-- Header -->
+    <div class="bg-blue-600 px-6 py-6">
+      <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+        <i data-lucide="file-text" class="w-6 h-6"></i>
+        Invoice Generator
+      </h1>
+      <p class="text-blue-100 text-sm mt-1">Generate automated service invoice</p>
+    </div>
+
+    <!-- Status Message -->
+    <div id="statusMessage" class="hidden px-6 py-4 text-sm font-medium border-b"></div>
+
+    <form id="invoiceForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-6">
+      
+      <!-- Amount -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Amount ($)</label>
+        <div class="relative rounded-md shadow-sm">
+          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <span class="text-gray-500 sm:text-sm">$</span>
+          </div>
+          <input type="number" name="amount" id="amount" required step="0.01" min="0" 
+                 class="block w-full rounded-md border-gray-300 pl-7 pr-12 focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-3" 
+                 placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Month -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Month</label>
+          <select name="month" id="monthSelect" class="input-field bg-white">
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+
+        <!-- Year (Dropdown) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+          <select name="year" id="yearSelect" class="input-field bg-white">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="pt-4">
+         <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white px-6 py-3.5 rounded-lg font-semibold hover:bg-blue-700 shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <i data-lucide="send" class="w-5 h-5"></i> Generate & Send
+         </button>
+      </div>
+
+    </form>
+  </div>
+
+  <script>
+    // Initialize Icons
+    lucide.createIcons();
+
+    // Auto-fill Current Month & Populate Years
+    window.addEventListener('load', () => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      
+      // Set Month
+      document.getElementById('monthSelect').value = monthNames[now.getMonth()];
+      
+      // Populate Year Dropdown (Current Year - 1 to Current Year + 5)
+      const yearSelect = document.getElementById('yearSelect');
+      for (let i = currentYear - 1; i <= currentYear + 5; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = i;
+        if (i === currentYear) {
+            option.selected = true;
+        }
+        yearSelect.appendChild(option);
+      }
+      
+      // Focus Amount field
+      document.getElementById('amount').focus();
+    });
+
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const status = document.getElementById('statusMessage');
+        const formData = new FormData(e.target);
+        
+        // Disable UI
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin mr-2">⟳</span> Processing...';
+        status.classList.add('hidden');
+
+        // Construct Data Object
+        const data = {
+            amount: formData.get('amount'),
+            month: formData.get('month'),
+            year: formData.get('year')
+        };
+
+        // Call Server Side
+        google.script.run
+            .withSuccessHandler(function(response) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="send" class="w-5 h-5 mr-2"></i> Generate & Send';
+                lucide.createIcons();
+                
+                status.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+                if (response.success) {
+                    status.classList.add('flex', 'bg-green-100', 'text-green-700');
+                    status.textContent = response.message;
+                    // Reset Amount field for next entry
+                    document.getElementById('amount').value = '';
+                } else {
+                    status.classList.add('flex', 'bg-red-100', 'text-red-700');
+                    status.textContent = response.message;
+                }
+            })
+            .generateAndSendInvoice(data);
+    }
+  </script>
+</body>
+</html>
